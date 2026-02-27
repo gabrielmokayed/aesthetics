@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aesthetics Research</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap');
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500&display=swap');
+
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f5;
+    --border: #e0e0e0;
+    --text-primary: #1a1a1a;
+    --text-secondary: #555555;
+    --text-muted: #999999;
+    --accent: #1a1a1a;
+    --accent-light: #f0f0f0;
+    --node-root-bg: #1a1a1a;
+    --node-root-text: #ffffff;
+    --node-1-bg: #eeeeee;
+    --node-1-text: #1a1a1a;
+    --node-2-bg: #f7f7f7;
+    --node-2-text: #2a2a2a;
+    --node-leaf-bg: #fafafa;
+    --line-color: #d0d0d0;
+    --panel-width: 360px;
+    --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Inter', -apple-system, sans-serif;
+    overflow: hidden;
+    width: 100%;
+    height: 100vh;
+    color: var(--text-primary);
+  }
+
+  /* Canvas */
+  #canvas {
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    cursor: grab;
+    position: relative;
+  }
+  #canvas:active { cursor: grabbing; }
+
+  #world {
+    position: absolute;
+    transform-origin: 0 0;
+    will-change: transform;
+  }
+
+  svg#lines {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  /* Nodes */
+  .node {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .node-box {
+    border-radius: 20px;
+    padding: 9px 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: normal;
+    word-break: normal;
+    transition: background var(--transition), box-shadow var(--transition), transform var(--transition);
+    border: 1.5px solid transparent;
+    text-align: left;
+    font-family: 'Inter', -apple-system, sans-serif;
+  }
+
+  .node-depth-0 .node-box { width: 160px; }
+  .node-depth-1 .node-box { width: 150px; }
+  .node-depth-2 .node-box,
+  .node-depth-3 .node-box,
+  .node-depth-4 .node-box,
+  .node-depth-5 .node-box,
+  .node-depth-6 .node-box,
+  .node-depth-7 .node-box,
+  .node-depth-8 .node-box { width: 190px; }
+
+  .node:hover .node-box {
+    transform: scale(1.04);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+
+  /* Root */
+  .node-depth-0 .node-box {
+    background: var(--node-root-bg);
+    color: var(--node-root-text);
+    font-size: 14px;
+    font-weight: normal;
+    letter-spacing: 0.02em;
+    padding: 14px 20px;
+    border-radius: 24px;
+  }
+
+  .root-main {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+
+  .root-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.25);
+    margin: 8px 0;
+  }
+
+  .root-sub {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.65;
+  }
+
+  /* Depth 1 */
+  .node-depth-1 .node-box {
+    background: var(--node-1-bg);
+    color: var(--node-1-text);
+    border-color: var(--border);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+  }
+
+  /* Depth 2 */
+  .node-depth-2 .node-box {
+    background: var(--node-2-bg);
+    color: var(--node-2-text);
+    border-color: var(--border);
+    font-size: 12px;
+  }
+
+  /* Depth 3+ */
+  .node-depth-3 .node-box,
+  .node-depth-4 .node-box,
+  .node-depth-5 .node-box,
+  .node-depth-6 .node-box,
+  .node-depth-7 .node-box,
+  .node-depth-8 .node-box {
+    background: var(--node-leaf-bg);
+    color: var(--text-secondary);
+    border-color: var(--border);
+    font-size: 11.5px;
+  }
+
+  /* Collapsed indicator */
+  .node-box.has-children::after {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    margin-left: 7px;
+    vertical-align: middle;
+    opacity: 0.6;
+  }
+  .node-depth-0 .node-box.has-children::after {
+    background: rgba(255,255,255,0.5);
+  }
+
+  .node-box.collapsed.has-children::after {
+    background: var(--accent);
+    opacity: 1;
+  }
+  .node-depth-0 .node-box.collapsed.has-children::after {
+    background: white;
+  }
+
+  /* Note indicator */
+  .note-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    margin-left: 5px;
+    vertical-align: middle;
+  }
+
+  /* Highlighted node */
+  .node-box.highlighted {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-light);
+  }
+
+  /* Side Panel */
+  #panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: var(--panel-width);
+    height: 100vh;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    transform: translateX(100%);
+    transition: transform var(--transition);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -8px 0 40px rgba(0,0,0,0.06);
+  }
+
+  #panel.open {
+    transform: translateX(0);
+  }
+
+  #panel-header {
+    padding: 28px 28px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  #panel-title {
+    font-size: 16px;
+    line-height: 1.4;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    flex: 1;
+  }
+
+  #panel-breadcrumb {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    letter-spacing: 0.03em;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+  }
+
+  #panel-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 20px;
+    line-height: 1;
+    padding: 2px;
+    flex-shrink: 0;
+    transition: color var(--transition);
+  }
+  #panel-close:hover { color: var(--text-primary); }
+
+  #panel-body {
+    padding: 24px 28px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  #panel-content {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    font-family: 'Inter', sans-serif;
+  }
+
+  #panel-note {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    font-style: italic;
+    white-space: pre-wrap;
+  }
+
+  #panel-note-label {
+    font-style: normal;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-family: 'Courier New', monospace;
+  }
+
+  /* Toolbar */
+  #toolbar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.95);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 6px 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    z-index: 100;
+    backdrop-filter: blur(12px);
+    transition: left var(--transition);
+  }
+
+  #toolbar button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: var(--text-primary);
+    transition: background var(--transition);
+  }
+  #toolbar button:hover { background: var(--accent-light); }
+
+  .tb-divider {
+    width: 1px;
+    height: 16px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+
+  #zoom-level {
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 36px;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+  }
+
+  /* Hint */
+  #hint {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.92);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 7px 16px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    pointer-events: none;
+    transition: opacity 0.6s;
+    backdrop-filter: blur(8px);
+    white-space: nowrap;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0.01em;
+    z-index: 50;
+  }
+
+  /* Expand all button */
+  #btn-expand-all, #btn-collapse-all {
+    font-size: 11px !important;
+    width: auto !important;
+    padding: 0 10px;
+    border-radius: 12px !important;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary) !important;
+  }
+
+</style>
+</head>
+<body>
+
+<div id="hint">Click to expand · Double-click to focus · Drag to pan · Scroll to zoom</div>
+
+<div id="canvas">
+  <svg id="lines"></svg>
+  <div id="world"></div>
+</div>
+
+<div id="panel">
+  <div id="panel-header">
+    <div style="flex:1">
+      <div id="panel-breadcrumb"></div>
+      <div id="panel-title"></div>
+    </div>
+    <button id="panel-close">×</button>
+  </div>
+  <div id="panel-body">
+    <div id="panel-content"></div>
+    <div id="panel-note" style="display:none">
+      <div id="panel-note-label">Note</div>
+      <div id="panel-note-text"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toolbar">
+  <button id="btn-expand-all">Expand all</button>
+  <div class="tb-divider"></div>
+  <button id="btn-collapse-all">Collapse</button>
+  <div class="tb-divider"></div>
+  <button id="btn-zoom-in" title="Zoom in">+</button>
+  <span id="zoom-level">100%</span>
+  <button id="btn-zoom-out" title="Zoom out">−</button>
+  <div class="tb-divider"></div>
+  <button id="btn-reset" title="Reset view">⌂</button>
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const OPML = `<?xml version="1.0" encoding="utf-8"?>
+<opml version="1.0">
+    <head><title>Aesthetics Research</title></head>
+    <body>
+        <outline _note="Aesthetics is a window into how mind and brain functions. It is central to understanding human cognition and culture.\n\nIt connects core human mental process such as perception, emotion, memory, decision making, and social interactions." text="Aesthetics&#10;by FRAAAMES">
+            <outline text="Foundations">
+                <outline text="Philosophy">
+                    <outline text="Thinkers">
+                        <outline text="Emmanuel Kant">
+                            <outline text="Judgment of Beauty">
+                                <outline text="First Moment: Disinterestedness">
+                                    <outline text="The judgment is based on feeling (pleasure or displeasure).\n\nThe pleasure must be disinterested, it doesn't depend on desire for the object, nor on its usefulness."/>
+                                </outline>
+                                <outline text="Second Moment: Universality">
+                                    <outline text="The judgment claims universality. When you call something beautiful, you assume others ought to agree.\n\nBut that universality is not based on a concept, it doesn't fit under a rule or definition."/>
+                                </outline>
+                                <outline text="Third Moment: Purposiveness without Purpose">
+                                    <outline text="Beauty judgments involve a sense of purposiveness without purpose."/>
+                                    <outline text="Formalism">
+                                        <outline text="The aesthetic judment is based only on form and excludes content, purpose, or utility."/>
+                                    </outline>
+                                    <outline text="Free play">
+                                        <outline text="In aesthetic judgment, these faculties harmonise without being constrained by concepts, leading to disinterested pleasure."/>
+                                        <outline text="Claims that pleasure is communicable.\n\nAssuming others should feel similarly, because free play mirros the conditions for cognition."/>
+                                    </outline>
+                                </outline>
+                                <outline text="Fourth Moment: Necessity and Common Sense">
+                                    <outline text="Grounding (shared sense): one judges that others ought to share the judgement, and is grounded in a notion of common sense (sensus communis), a principle for judging by feeling rather than by strict rules."/>
+                                </outline>
+                                <outline text="Three Kinds of Judgments of Taste / Pleasure">
+                                    <outline text="The Agreable">
+                                        <outline text="Based on sensation and personal liking (e.g. food, drink, comfort)."/>
+                                        <outline text="Entirely subjective, no claim to universality."/>
+                                    </outline>
+                                    <outline text="The Good">
+                                        <outline text="Based on concepts (utility, morality, purpose)."/>
+                                        <outline text="Requires reasoning; can be objectively grounded."/>
+                                    </outline>
+                                    <outline text="The Beautiful">
+                                        <outline text="Gives pleasure without interest (not sensory or moral)."/>
+                                    </outline>
+                                </outline>
+                                <outline text="Notes">
+                                    <outline text="Judgments of beauty are like judgments of feeling (subjective) but also make a normative claim (universality) that resembles objective judgments."/>
+                                </outline>
+                            </outline>
+                            <outline text="Fine Art &amp; Genius">
+                                <outline text="Art is the expression or embodiment of ideas which cannot be completly captured by concepts."/>
+                            </outline>
+                            <outline text="Sublime">
+                                <outline text="A separate aestehtic category. It involves a kind of pleasurable horror or respect, where something overwhelms our faculties but still inspires them."/>
+                            </outline>
+                            <outline text="Aesthetics and Morality">
+                                <outline text="Aesthetic judgment is not reducible to moral judgment, but there are alignments and tensions between them."/>
+                            </outline>
+                            <outline text="Criticisms of Pleasure and judgment">
+                                <outline text="If the free play is involved in ordinary cognition, then it seems everything should be judged beautiful. If not, the universality claim is harder to justify."/>
+                                <outline text="Whether the pleasure precedes the judgment or whether judgment itself grounds the pleasure. His text complicates this."/>
+                                <outline text="Intentionality of the pleasure">
+                                    <outline text="Is the felt pleasure directed toward the object in a conceptual way?"/>
+                                </outline>
+                                <outline text="Objectivity of taste">
+                                    <outline text="Altought Kant treats judgments of beauty as subjectively grounded, some (e.g. Ameriks) argue he still gives them a kind of objectivity; others defend Kant's subjectivity."/>
+                                </outline>
+                                <outline text="Negative judgments of beauty (Ugliness)">
+                                    <outline text="Kant mostly treates positive judgments; his account of ugliness or what it is to judge something not beautiful is underdeveloped and debated."/>
+                                </outline>
+                            </outline>
+                        </outline>
+                        <outline text="Plato">
+                            <outline text="Beauty">
+                                <outline text="Beauty (Kalon)">
+                                    <outline _note="Source: Introduction, ¶1, lines 73–83." text="The Greek kalon means more than beautiful; it carries moral and ethical connotations such as noble or fine."/>
+                                </outline>
+                                <outline text="Essence">
+                                    <outline _note="Source: Section 1.1, lines 86–100." text="In Hippias Major, Socrates pursues but does not find a single definition of beauty."/>
+                                </outline>
+                                <outline text="Diotima (ladder of love)">
+                                    <outline _note="Source: Section 1.2, lines 104–110." text="In Symposium, Diotima's ladder of love shows the ascent from love of individual bodies to knowledge of the eternal Form of Beauty."/>
+                                </outline>
+                                <outline text="Nature">
+                                    <outline _note="Source: Section 1.3, lines 114–117." text="In Phaedrus, Plato praises a natural setting as a beautiful resting place, suggesting beauty extends beyond art."/>
+                                </outline>
+                            </outline>
+                            <outline text="Art">
+                                <outline text="Mimesis (Imitation)">
+                                    <outline text="In the Republic, Plato criticizes art as imitation, twice removed from reality: Form > object > artistic image."/>
+                                    <outline text="The process of imitation or mimicry through which artists portray and interpret the world."/>
+                                </outline>
+                                <outline text="Inspiration and divine madness">
+                                    <outline text="In Ion, Plato presents a different view: artists are not skilled craftsmen but divinely inspired, channels for gods."/>
+                                </outline>
+                            </outline>
+                        </outline>
+                        <outline text="Aristotle">
+                            <outline text="Mimesis">
+                                <outline text="Unlike Plato, Aristotle sees imitation as natural and pleasurable. Humans learn through imitation."/>
+                            </outline>
+                            <outline text="Catharsis">
+                                <outline text="Tragedy produces catharsis: a purging or clarification of emotions (pity and fear)."/>
+                            </outline>
+                            <outline text="Unity and form">
+                                <outline text="Good art has unity, proper magnitude, and coherent structure."/>
+                            </outline>
+                        </outline>
+                        <outline text="Alexander Baumgarten">
+                            <outline text="Coined the term Aesthetics in 1735 from the Greek word aisthetikos."/>
+                            <outline text="Defined aesthetics as the science of sensory cognition, distinct from logic."/>
+                        </outline>
+                        <outline text="David Hume">
+                            <outline text="Of the Standard of Taste">
+                                <outline text="Taste is subjective, but some judgments are better than others. The ideal critic has delicacy, practice, comparison, absence of prejudice, and good sense."/>
+                            </outline>
+                        </outline>
+                        <outline text="Hegel">
+                            <outline text="Art as Spirit">
+                                <outline text="Art is the sensuous expression of the Absolute Spirit. It reveals truth through material form."/>
+                            </outline>
+                            <outline text="End of Art">
+                                <outline text="Art gives way to religion and philosophy as higher forms of Spirit. Art can no longer carry the full weight of truth."/>
+                            </outline>
+                        </outline>
+                        <outline text="John Dewey">
+                            <outline text="Art as Experience">
+                                <outline text="Aesthetic experience is not separate from ordinary life. It is the culmination of any experience done fully and well."/>
+                            </outline>
+                        </outline>
+                        <outline text="Arthur Danto">
+                            <outline text="The Artworld">
+                                <outline text="Something becomes art through its place in the artworld — the institutional and theoretical context that frames it."/>
+                            </outline>
+                            <outline text="The Transfiguration of the Commonplace">
+                                <outline text="Art transfigures ordinary objects. What makes Warhol's Brillo Box art and not a supermarket box is the theory surrounding it."/>
+                            </outline>
+                        </outline>
+                    </outline>
+                    <outline text="Theories of Art">
+                        <outline text="Representationalism">
+                            <outline text="Art represents or imitates reality. Its value lies in how accurately or meaningfully it depicts the world."/>
+                        </outline>
+                        <outline text="Expressivism">
+                            <outline text="Art expresses inner emotional states. Tolstoy: art is the communication of feeling from artist to audience."/>
+                        </outline>
+                        <outline text="Formalism">
+                            <outline text="What matters is form, not content. Clive Bell: significant form is the common quality in all visual art."/>
+                        </outline>
+                        <outline text="Institutionalism">
+                            <outline text="Art is whatever the artworld declares to be art. Dickie: art is an artifact presented for appreciation by the artworld."/>
+                        </outline>
+                    </outline>
+                    <outline text="Key Concepts">
+                        <outline text="The Sublime">
+                            <outline text="Burke: the sublime is linked to danger, vastness, obscurity, power — emotions close to pain that produce astonishment."/>
+                            <outline text="Kant: the sublime arises when nature overwhelms sensory comprehension but reason asserts its superiority."/>
+                        </outline>
+                        <outline text="Taste">
+                            <outline text="The capacity to judge beauty. Is it universal or culturally conditioned?"/>
+                        </outline>
+                        <outline text="Disinterestedness">
+                            <outline text="Aesthetic pleasure is not tied to desire, utility, or personal gain. Central to Kant and Schopenhauer."/>
+                        </outline>
+                    </outline>
+                </outline>
+                <outline text="Psychology">
+                    <outline text="Processing Fluency">
+                        <outline text="A theory in psychological aesthetics on how people experience beauty."/>
+                        <outline text="Principals">
+                            <outline text="Simplicity"/>
+                            <outline text="Clarity"/>
+                            <outline text="Well-organised"/>
+                        </outline>
+                        <outline text="Aesthetics">
+                            <outline text="Things that are easier to process are often perceived as more beautiful."/>
+                        </outline>
+                        <outline text="Takeaways in relation to Philosophy">
+                            <outline text="Closest alignments: Aristotle, Kant, Hume — they all tie beauty to recognition, harmony, or sentiment, which processing fluency explains cognitively."/>
+                            <outline text="Tensions: Plato, Murdoch, Korsmeyer — they highlight art's resistance to mere ease, showing that difficulty, moral challenge, or disgust also matter."/>
+                            <outline text="Bridges: Langer, Goodman, Tolstoy — each connect fluency to communication, symbolism, or form, but also go beyond it."/>
+                        </outline>
+                    </outline>
+                    <outline text="Psychologists">
+                        <outline text="Gustav Fechner">
+                            <outline text="Studies">
+                                <outline text="Elements of Psychophysics"/>
+                                <outline text="Primer of Aesthetics">
+                                    <outline text="Fechner suggested that aesthetics could be studied from the bottom up (von Unten herauf). Rather than confronting complex philosophical concepts about beauty and sublimity, Fechner focused on analyses of elemental perceptual features. He studied preference judgements for basic shapes, such as rectangles of varying proportion, to determine which one was most appealing. He also studied preferences for colours."/>
+                                </outline>
+                            </outline>
+                            <outline text="Principle of Prägnanz">
+                                <outline text="The notion that we organise our perceptions based on the simplest or most succinct interpretations."/>
+                            </outline>
+                        </outline>
+                        <outline text="Max Wertheimer, Kurt Koffka, and Wolfgang Köhler">
+                            <outline text="They considered the visual scene as an organised grouping of features and argued that perceptions couldn't be dissected into basic elements."/>
+                            <outline text="This stance was inherent in their credo that the whole is different from the sum of its parts."/>
+                        </outline>
+                        <outline text="Rudolf Arnheim">
+                            <outline text="Art and Visual Perception">
+                                <outline text="Paintings with respect to the perceptual forces that artists induced through balance, harmony, and object placement."/>
+                            </outline>
+                        </outline>
+                        <outline text="Daniel Berlyne">
+                            <outline text="According to Berlyne, optimally pleasing artworks are those that create some arousal or psychological tension but not so much that they become disturbing. He suggested that arousal is determined by specific features of artworks, such as novelty, complexity, surprisingness, uncertainty, and incongruity. He called these features collative properties because they must be collated in order to drive one's emotional experience."/>
+                            <outline text="The greater the number of collative properties in an artwork, the greater our arousal. Yet too much will lead to a negative response."/>
+                        </outline>
+                        <outline text="Silvan Tomkins">
+                            <outline text="Tomkins bridges biology and aesthetics: art gives form and meaning to raw affect. Affect is the biological foundation of emotion and motivation, the primary system through which we experience the world."/>
+                            <outline text="Nine Primary Affects">
+                                <outline text="Interest / Excitement">
+                                    <outline text="Drives curiosity, exploration, attention. Central to aesthetic engagement — it's what keeps us looking, listening, reading."/>
+                                </outline>
+                                <outline text="Enjoyment / Joy">
+                                    <outline text="Signals success, pleasure, completion. Response to beauty, harmony, or resolution. The satisfaction of aesthetic fluency."/>
+                                </outline>
+                                <outline text="Surprise / Startle">
+                                    <outline text="Interrupts expectation, resets awareness. Found in contrast, shock, dissonance. Key in modern art, suspense, or revelation."/>
+                                </outline>
+                                <outline text="Distress / Anguish">
+                                    <outline text="Signals loss or frustration. Seen in tragedy, melancholy art, or pathos — aesthetic reflection on suffering."/>
+                                </outline>
+                                <outline text="Anger / Rage">
+                                    <outline text="Mobilises defense, restores control. Found in political or confrontational art, like moral outrage or social critique."/>
+                                </outline>
+                                <outline text="Fear / Terror">
+                                    <outline text="Protects from threat or danger. Horror, sublime, or tension. Beauty mixed with fear or awe."/>
+                                </outline>
+                                <outline text="Disgust">
+                                    <outline text="Rejects contamination or violation. Core to aesthetics of the grotesque, food art, or moral disgust."/>
+                                </outline>
+                                <outline text="Dissmell">
+                                    <outline text="Rejection via smell — subtle, instinctive. Often symbolic in art and food aesthetics. The sensory border of attraction and repulsion."/>
+                                </outline>
+                                <outline text="Shame / Humiliation">
+                                    <outline text="Social affect — exposure, failure, vulnerability. Linked to empathy, identity, and self-awareness in art, performance, and confession."/>
+                                </outline>
+                            </outline>
+                        </outline>
+                    </outline>
+                    <outline text="Emotion">
+                        <outline text="Empathy">
+                            <outline text="Embodied cognition and mirror neurons: art can engage our bodily simulation, helping us feel into what is depicted."/>
+                        </outline>
+                        <outline text="Compensation">
+                            <outline text="Audiences tolerate the negative emotions of tragedy, horror and other genres because they recognise compensatory benefits (Carroll 1990; Feagin 1983)."/>
+                        </outline>
+                        <outline text="Conversion">
+                            <outline text="Emotions which would otherwise be experienced as unpleasant are experienced as positive in artistic contexts (Hume 1757)."/>
+                        </outline>
+                        <outline text="Neutrality">
+                            <outline text="It is wrong to think that the so-called negative emotions provoked by tragedy or horror are intrinsically unpleasant and in need of compensation. They are not intrinsically valenced and may be experienced negatively in some situations and positively in others (Gaut 1993; Walton 1990)."/>
+                        </outline>
+                    </outline>
+                    <outline text="Bottom-up vs Top-down">
+                        <outline text="Top-down: Knowing is seeing. Knowledge, culture, training, and meaning affect our judgments."/>
+                        <outline text="Bottom-up: Studies of immediate perceptual preferences (colour, shape, symmetry etc)."/>
+                    </outline>
+                </outline>
+                <outline text="Neuroscience">
+                    <outline text="Neuroaesthetics">
+                        <outline text="Studies how the brain perceives, processes, and responds to aesthetic stimuli (art, music, beauty)."/>
+                        <outline text="Bridges empirical neuroscience with questions traditionally belonging to philosophy and art criticism."/>
+                    </outline>
+                    <outline text="Embodied Cognition">
+                        <outline text="Aesthetic experience is not purely mental. The body, posture, and physical states shape how we perceive beauty."/>
+                    </outline>
+                    <outline text="Mirror Neurons">
+                        <outline text="Fire both when an action is performed and when it is observed. May underlie empathy and emotional resonance with art."/>
+                    </outline>
+                    <outline text="Performing Arts">
+                        <outline text="Investigates performing arts as an expressive art that incorporates motor and emotional responses, as well as the typically studied cognitive processes of creativity."/>
+                    </outline>
+                    <outline text="Default Mode Network">
+                        <outline text="The default mode the brain refers to when in introspection and self-directed thoughts.\n\nThis impairs patients with Major Depressive Disorder (MDD) to engage in externally driven as opposed to self-directed tasks."/>
+                    </outline>
+                    <outline text="Neuroscientists">
+                        <outline text="Korbinian Brodmann">
+                            <outline text="Published a seminal atlas of the human cerebral cortex based on his detailed anatomical studies. We now know that the cerebral cortex is a thin sheet of interconnected neurons that has expanded considerably during evolution, in fact so much so that it has become enfolded within the human skull, thus giving its appearance of many ridges (gyri) and valleys (sulci).\n\nIf the cerebral cortex were flattened, it would be equivalent in area to the size of an extra-large pizza (about 20 inches in diameter, 2 mm thick)."/>
+                        </outline>
+                        <outline text="Semir Zeki">
+                            <outline text="Founder of neuroaesthetics. Studying how the brain perceives and responds to beauty. Zeki argues that aesthetic experience is rooted in biology. The brain actively seeks beauty as part of its natural function to make sense of the world."/>
+                            <outline text="Beauty and the Brain">
+                                <outline text="Beauty, whether visual, musical, or mathematical, activates the medial orbitofrontal cortex (mOFC), a region linked to pleasure and reward. This response occurs across individuals and cultures, suggesting a biological basis for aesthetic experience."/>
+                            </outline>
+                            <outline text="The Visual Brain">
+                                <outline text="The brain doesn't passively record; it constructs visual reality through specialised areas (color, form, motion). Artists, consciously or not, explore how these systems work, turning perception itself into art."/>
+                            </outline>
+                            <outline text="Aesthetic Universals">
+                                <outline text="Beauty reflects the search for truth. The brain's drive to find order and meaning.\n\nHence, art and science share the same goal: understanding reality through patterns and harmony."/>
+                            </outline>
+                            <outline text="Kawabata &amp; Zeki 2004">
+                                <outline text="Their fMRI study showed orbitofrontal cortex activation when participants viewed or heard things they found beautiful (art, music).\n\nDemonstrates that subjective beauty has an objective neural signature."/>
+                            </outline>
+                        </outline>
+                    </outline>
+                    <outline text="Cerebral Cortex">
+                        <outline text="Prefrontal cortex">
+                            <outline text="It receives inputs from other brain regions and sends projections back to these regions. In this way, the PFC coordinates and controls neural processing.\n\nOur ability to focus attention to specific sensory signals or retrieve specific memories depends on the PFC to monitor and control neural activity."/>
+                        </outline>
+                        <outline text="Orbitofrontal cortex">
+                            <outline text="The ventral (lower) region of the PFC, an area called the orbitofrontal cortex, is important for the control and regulation of emotions.\n\nPatients with orbitofrontal damage often exhibit emotional outbursts, inappropriate social behavior, risk-taking behavior, and obsessive-compulsive disorder."/>
+                            <outline text="In neuroaesthetics, the orbitofrontal cortex has been shown to be particularly active during emotional responses to art."/>
+                            <outline text="Medial orbitofrontal cortex (mOFC)">
+                                <outline text="A region linked to pleasure and reward."/>
+                            </outline>
+                        </outline>
+                        <outline text="Dorsal pathway">
+                            <outline text="The dorsal visual pathway, also called the where or how stream, is a major visual processing route that travels from the primary visual cortex in the occipital lobe to the parietal lobe."/>
+                        </outline>
+                    </outline>
+                </outline>
+            </outline>
+            <outline text="Personal Resonance">
+                <outline text="Preferences"/>
+                <outline text="Case studies">
+                    <outline _note="Aesthetics used to be plural. Each culture shaped its own sense of beauty. Japanese wabi-sabi, European symmetry, African rhythm, Islamic pattern. Local answers to the same universal questions.\n\nToday, the internet and algorithms are rewriting this. Platforms circulate the same images, sounds, and trends worldwide. A teenager in Lagos, Paris, and Tokyo scrolls through the same feed. The result is not uniformity, but convergence. Local traditions remain, but they are overlaid by a shared global fluency.\n\nCognitive science tells us why this is possible. Our brains like fluency, repetition, and prediction. Pleasure comes from patterns we can process quickly. This is universal. Yet aesthetics is more than brain states. It involves meaning, value, and context — the bridge problem. A forgery can give the same pleasure as an original, but once context changes, so does value.\n\nGlobalisation sharpens this tension. Algorithms now shape what gives us pleasure. They compress aesthetics into formats that travel fast: short videos, simple beats, bold visuals. At the same time, these compressed forms generate new micro-variations. Convergence and difference unfold together.\n\nTo speak of aesthetics today is to recognise this double movement. We are not in a world of isolated traditions, nor in a fully homogenised culture. We live in a hybrid state where universals of the brain, plural inheritances of culture, and infrastructures of technology all meet." text="Globalisation of Aesthetics"/>
+                </outline>
+                <outline text="Questions">
+                    <outline text="Can cognitive science help explain how literature affects us (narrative immersion, metaphor, style)?"/>
+                    <outline text="Did aesthetic sensibilities evolve? Are they adaptations, by-products, or exaptations?"/>
+                    <outline text="Can knowing how the brain processes art tell us how we ought to respond?"/>
+                </outline>
+            </outline>
+            <outline text="Core Aesthetic Dials">
+                <outline text="Fluency"/>
+                <outline text="Complexity"/>
+                <outline text="Contour"/>
+                <outline text="Meaning"/>
+                <outline text="Self-Relevance"/>
+            </outline>
+            <outline text="Definition">
+                <outline text="The word Aesthetics derives from the Greek aisthetikos meaning related to sense experience.\n\n/noun\nA set of principles concerned with the nature and appreciation of beauty."/>
+            </outline>
+        </outline>
+    </body>
+</opml>`;
+
+// ─── PARSE OPML ──────────────────────────────────────────────────────────────
+function parseOPML(xmlStr) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlStr, 'text/xml');
+  let idCounter = 0;
+
+  function parseNode(el, depth, parent) {
+    const text = el.getAttribute('text') || '';
+    const note = el.getAttribute('_note') || '';
+    const children = Array.from(el.children).filter(c => c.tagName === 'outline');
+    const id = idCounter++;
+
+    const node = {
+      id, text, note, depth, parent,
+      children: [],
+      collapsed: depth >= 1, // start with only root open
+      x: 0, y: 0,
+      el: null
+    };
+
+    node.children = children.map(c => parseNode(c, depth + 1, node));
+    return node;
+  }
+
+  const root = doc.querySelector('body > outline');
+  return parseNode(root, 0, null);
+}
+
+// ─── LAYOUT ENGINE ───────────────────────────────────────────────────────────
+const H_GAP = 80;   // horizontal gap between level edges
+const V_GAP = 16;   // vertical gap between sibling nodes
+
+function getNodeWidth(node) {
+  if (node.depth === 0) return 160;
+  if (node.depth === 1) return 150;
+  return 190;
+}
+
+function isLeaf(node) { return node.children.length === 0; }
+
+function visibleChildren(node) {
+  if (node.collapsed) return [];
+  return node.children;
+}
+
+// Measure real DOM height of a node, cache on node.h
+function measureHeight(node) {
+  if (node.h !== undefined) return node.h;
+  if (node.el) {
+    node.h = node.el.offsetHeight;
+  } else {
+    // estimate fallback — will be remeasured after first render
+    const charsPerLine = node.depth === 0 ? 18 : 22;
+    const lines = Math.ceil(node.text.length / charsPerLine);
+    node.h = Math.max(38, lines * 20 + 18);
+  }
+  return node.h;
+}
+
+function invalidateHeights(node) {
+  node.h = undefined;
+  node.children.forEach(c => invalidateHeights(c));
+}
+
+function subtreeHeight(node) {
+  const vc = visibleChildren(node);
+  const selfH = measureHeight(node);
+  if (vc.length === 0) return selfH + V_GAP;
+  const childrenH = vc.reduce((s, c) => s + subtreeHeight(c), 0);
+  return Math.max(selfH + V_GAP, childrenH);
+}
+
+function layoutTree(root) {
+  // Invalidate cached heights so we re-measure after DOM updates
+  invalidateHeights(root);
+
+  function assignPositions(node, startY) {
+    const vc = visibleChildren(node);
+    const selfH = measureHeight(node);
+
+    if (vc.length === 0) {
+      node.y = startY + selfH / 2;
+      return startY + selfH + V_GAP;
+    }
+
+    // Total height all children will occupy
+    const totalChildH = vc.reduce((s, c) => s + subtreeHeight(c), 0);
+
+    // Position children starting so they're centred around node
+    let childStartY = startY + selfH / 2 - totalChildH / 2;
+    // Never let children start before the node top
+    if (childStartY < startY) childStartY = startY;
+
+    vc.forEach(child => {
+      child.x = node.x + getNodeWidth(node) / 2 + H_GAP + getNodeWidth(child) / 2;
+      const nextY = assignPositions(child, childStartY);
+      childStartY = nextY;
+    });
+
+    // Centre parent vertically between first and last child
+    node.y = (vc[0].y + vc[vc.length - 1].y) / 2;
+
+    const lastChild = vc[vc.length - 1];
+    const endY = lastChild.y + measureHeight(lastChild) / 2 + V_GAP;
+    return Math.max(startY + selfH + V_GAP, endY);
+  }
+
+  root.x = 0;
+  assignPositions(root, 0);
+}
+
+// ─── RENDERER ────────────────────────────────────────────────────────────────
+const world = document.getElementById('world');
+const svgLines = document.getElementById('lines');
+const canvas = document.getElementById('canvas');
+
+let allNodes = [];
+let scale = 1, tx = 0, ty = 0;
+let isDragging = false, startX, startY, startTx, startTy;
+const MIN_SCALE = 0.1, MAX_SCALE = 3;
+
+function collectAll(node, arr = []) {
+  arr.push(node);
+  node.children.forEach(c => collectAll(c, arr));
+  return arr;
+}
+
+let root;
+
+function init() {
+  root = parseOPML(OPML);
+  root.collapsed = false; // root always open
+  allNodes = collectAll(root);
+  // First render to create DOM elements
+  renderNodes();
+  // Wait for browser to paint and compute heights, then layout properly
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      render();
+      centerOnRoot();
+    });
+  });
+}
+
+function render() {
+  // First pass: create/update DOM nodes so heights can be measured
+  renderNodes();
+  // Second pass: measure real heights & compute layout
+  layoutTree(root);
+  // Third pass: apply computed positions
+  renderNodes();
+  renderLines();
+}
+
+function renderNodes() {
+  // Remove stale
+  allNodes.forEach(n => {
+    if (n.el && !isVisible(n)) {
+      n.el.remove();
+      n.el = null;
+    }
+  });
+
+  allNodes.forEach(n => {
+    if (!isVisible(n)) return;
+
+    if (!n.el) {
+      const div = document.createElement('div');
+      div.className = `node node-depth-${n.depth}`;
+      div.dataset.id = n.id;
+
+      const box = document.createElement('div');
+      box.className = 'node-box';
+      if (n.depth === 0 && n.text.includes('\n')) {
+        const parts = n.text.split('\n');
+        const main = document.createElement('div');
+        main.className = 'root-main';
+        main.textContent = parts[0];
+        const divider = document.createElement('div');
+        divider.className = 'root-divider';
+        const sub = document.createElement('div');
+        sub.className = 'root-sub';
+        sub.textContent = parts[1];
+        box.appendChild(main);
+        box.appendChild(divider);
+        box.appendChild(sub);
+      } else {
+        const words = n.text.split(' ');
+        box.textContent = words.length > 20 ? words.slice(0, 20).join(' ') + '…' : n.text;
+      }
+
+      if (n.children.length > 0) box.classList.add('has-children');
+      if (n.note) {
+        const dot = document.createElement('span');
+        dot.className = 'note-dot';
+        box.appendChild(dot);
+      }
+
+      div.appendChild(box);
+      world.appendChild(div);
+      n.el = div;
+
+      div.addEventListener('click', (e) => { e.stopPropagation(); handleClick(n); });
+      div.addEventListener('dblclick', (e) => { e.stopPropagation(); handleDblClick(n); });
+    }
+
+    // Update position
+    n.el.style.left = n.x + 'px';
+    n.el.style.top = n.y + 'px';
+
+    // Update collapse state
+    const box = n.el.querySelector('.node-box');
+    if (n.collapsed && n.children.length > 0) {
+      box.classList.add('collapsed');
+    } else {
+      box.classList.remove('collapsed');
+    }
+  });
+}
+
+function isVisible(node) {
+  if (node.depth === 0) return true;
+  let p = node.parent;
+  while (p) {
+    if (p.collapsed) return false;
+    p = p.parent;
+  }
+  return true;
+}
+
+function renderLines() {
+  svgLines.innerHTML = '';
+  allNodes.forEach(n => {
+    if (!isVisible(n) || !n.parent || !isVisible(n.parent)) return;
+    const p = n.parent;
+    const x1 = p.x + getNodeWidth(p) / 2;
+    const y1 = p.y;
+    const x2 = n.x - getNodeWidth(n) / 2;
+    const y2 = n.y;
+    const mx = (x1 + x2) / 2;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#d4cfc6');
+    path.setAttribute('stroke-width', n.depth <= 1 ? '1.5' : '1');
+    svgLines.appendChild(path);
+  });
+}
+
+// ─── INTERACTIONS ─────────────────────────────────────────────────────────────
+let panelNode = null;
+
+function handleClick(node) {
+  if (node.children.length > 0) {
+    node.collapsed = !node.collapsed;
+    // Render nodes first, then measure & re-layout
+    renderNodes();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        render();
+      });
+    });
+  } else {
+    const wordCount = node.text.split(' ').length;
+    if (wordCount > 20 || node.note) {
+      openPanel(node);
+    }
+  }
+}
+
+function handleDblClick(node) {
+  focusNode(node);
+}
+
+function focusNode(node) {
+  const cW = canvas.clientWidth;
+  const cH = canvas.clientHeight;
+  const targetScale = node.depth === 0 ? 1.2 : 1.5;
+  scale = targetScale;
+  tx = cW / 2 - node.x * scale;
+  ty = cH / 2 - node.y * scale;
+  applyTransform(true);
+}
+
+function openPanel(node) {
+  panelNode = node;
+  // Build breadcrumb
+  const crumbs = [];
+  let p = node.parent;
+  while (p) { crumbs.unshift(p.text); p = p.parent; }
+  // Breadcrumb = full path, panel-title = last node label (short/parent nodes)
+  // For leaf content nodes, don't repeat — just show text once in body
+  const isContentNode = node.children.length === 0;
+  if (isContentNode) {
+    // Show path in breadcrumb, full text in body only
+    document.getElementById('panel-breadcrumb').textContent = crumbs.join(' › ');
+    document.getElementById('panel-title').textContent = '';
+    document.getElementById('panel-title').style.display = 'none';
+    const contentEl = document.getElementById('panel-content');
+    contentEl.textContent = node.text;
+    contentEl.style.display = 'block';
+  } else {
+    // Parent nodes: show name as title, no body text needed
+    document.getElementById('panel-breadcrumb').textContent = crumbs.join(' › ');
+    const titleEl = document.getElementById('panel-title');
+    titleEl.textContent = node.text;
+    titleEl.style.display = 'block';
+    const contentEl = document.getElementById('panel-content');
+    contentEl.textContent = '';
+    contentEl.style.display = 'none';
+  }
+
+  const noteEl = document.getElementById('panel-note');
+  if (node.note) {
+    document.getElementById('panel-note-text').textContent = node.note;
+    noteEl.style.display = 'block';
+  } else {
+    noteEl.style.display = 'none';
+  }
+
+  document.getElementById('panel').classList.add('open');
+
+  // Highlight
+  allNodes.forEach(n => {
+    if (n.el) n.el.querySelector('.node-box').classList.remove('highlighted');
+  });
+  if (node.el) node.el.querySelector('.node-box').classList.add('highlighted');
+}
+
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+  allNodes.forEach(n => {
+    if (n.el) n.el.querySelector('.node-box').classList.remove('highlighted');
+  });
+  panelNode = null;
+}
+
+document.getElementById('panel-close').addEventListener('click', closePanel);
+
+// ─── PAN & ZOOM ───────────────────────────────────────────────────────────────
+function applyTransform(animated = false) {
+  if (animated) {
+    world.style.transition = 'transform 0.4s cubic-bezier(0.4,0,0.2,1)';
+    svgLines.style.transition = 'transform 0.4s cubic-bezier(0.4,0,0.2,1)';
+    setTimeout(() => {
+      world.style.transition = '';
+      svgLines.style.transition = '';
+    }, 400);
+  }
+  world.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  svgLines.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
+}
+
+function centerOnRoot() {
+  const cW = canvas.clientWidth;
+  const cH = canvas.clientHeight;
+  scale = 1.0;
+  tx = cW / 2 - root.x * scale;
+  ty = cH / 2 - root.y * scale;
+  applyTransform(true);
+}
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  const delta = e.deltaY < 0 ? 1.1 : 0.9;
+  const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * delta));
+  const r = newScale / scale;
+  tx = mouseX - r * (mouseX - tx);
+  ty = mouseY - r * (mouseY - ty);
+  scale = newScale;
+  applyTransform();
+}, { passive: false });
+
+canvas.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  startX = e.clientX; startY = e.clientY;
+  startTx = tx; startTy = ty;
+});
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  tx = startTx + (e.clientX - startX);
+  ty = startTy + (e.clientY - startY);
+  applyTransform();
+});
+window.addEventListener('mouseup', () => { isDragging = false; });
+
+// Touch
+let lastTouchDist = null;
+canvas.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    isDragging = true;
+    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+    startTx = tx; startTy = ty;
+  } else if (e.touches.length === 2) {
+    isDragging = false;
+    lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  }
+}, { passive: true });
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (e.touches.length === 1 && isDragging) {
+    tx = startTx + (e.touches[0].clientX - startX);
+    ty = startTy + (e.touches[0].clientY - startY);
+    applyTransform();
+  } else if (e.touches.length === 2 && lastTouchDist) {
+    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    const r = dist / lastTouchDist;
+    const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * r));
+    const sr = newScale / scale;
+    tx = mx - sr * (mx - tx);
+    ty = my - sr * (my - ty);
+    scale = newScale;
+    lastTouchDist = dist;
+    applyTransform();
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => { isDragging = false; lastTouchDist = null; });
+
+// Toolbar
+document.getElementById('btn-zoom-in').addEventListener('click', () => {
+  const cx = canvas.clientWidth/2, cy = canvas.clientHeight/2;
+  const newScale = Math.min(MAX_SCALE, scale * 1.3);
+  const r = newScale/scale;
+  tx = cx - r*(cx-tx); ty = cy - r*(cy-ty); scale = newScale;
+  applyTransform(true);
+});
+document.getElementById('btn-zoom-out').addEventListener('click', () => {
+  const cx = canvas.clientWidth/2, cy = canvas.clientHeight/2;
+  const newScale = Math.max(MIN_SCALE, scale / 1.3);
+  const r = newScale/scale;
+  tx = cx - r*(cx-tx); ty = cy - r*(cy-ty); scale = newScale;
+  applyTransform(true);
+});
+document.getElementById('btn-reset').addEventListener('click', centerOnRoot);
+
+document.getElementById('btn-expand-all').addEventListener('click', () => {
+  allNodes.forEach(n => { n.collapsed = false; });
+  render();
+});
+document.getElementById('btn-collapse-all').addEventListener('click', () => {
+  allNodes.forEach(n => { if (n.depth > 0) n.collapsed = true; });
+  render();
+  centerOnRoot();
+});
+
+// Fade hint
+setTimeout(() => { document.getElementById('hint').style.opacity = '0'; }, 5000);
+
+window.addEventListener('resize', () => { render(); });
+
+init();
+</script>
+</body>
+</html>
